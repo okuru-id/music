@@ -1,0 +1,20 @@
+stages:
+  - check
+
+check:
+  stage: check
+  image: rust:1
+  variables:
+    CARGO_HOME: $CI_PROJECT_DIR/.cargo
+  cache:
+    key: cargo
+    paths:
+      - .cargo/registry/
+      - target/
+  script:
+    - cargo fmt --all -- --check
+    - cargo clippy --workspace --all-targets -- -D warnings
+    - cargo test --workspace
+    # Layer rule: application must never pull I/O or shell crates (match crate names, not paths).
+    - cargo tree -p application -e normal --charset ascii > tree.txt
+    - "! grep -Eq '(^|[|`]-+ )(tauri|sqlx|tokio|walkdir|notify|symphonia|cpal|lofty)( |$)' tree.txt || (echo 'FORBIDDEN dependency in application layer' && exit 1)"

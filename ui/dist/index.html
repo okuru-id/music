@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="id" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Spotiflac</title>
+<style>
+  :root {
+    --bg-base: #0E0F12; --bg-surface: #17181C; --bg-elevated: #1F2126;
+    --bg-hover: #26282E; --bg-selected: #2E3038;
+    --text-primary: #F2F2F4; --text-secondary: #A3A6AE; --text-tertiary: #6E717A;
+    --border: #2A2C32; --accent: #FF8A5B; --on-accent: #0E0F12;
+    --danger: #FF6B6B; --success: #4CD488;
+    --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  [data-theme="light"] {
+    --bg-base: #F7F7F8; --bg-surface: #FFFFFF; --bg-elevated: #FFFFFF;
+    --bg-hover: #EEEEF0; --bg-selected: #E4E5E9;
+    --text-primary: #15161A; --text-secondary: #5D6068; --text-tertiary: #8E9199;
+    --border: #E2E3E7; --accent: #C8451F; --on-accent: #FFFFFF;
+    --danger: #D93636; --success: #1F9D57;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font); background: var(--bg-base); color: var(--text-primary);
+    font-size: 14px; overflow: hidden; user-select: none;
+  }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+  #app {
+    display: flex; flex-direction: column; height: 100%;
+    max-width: 480px; margin: 0 auto; position: relative;
+  }
+  @media (min-width: 900px) {
+    body { background: var(--bg-surface); }
+    #app { max-width: 420px; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+  }
+
+  /* App bar */
+  .appbar {
+    height: 56px; padding: 0 16px; display: flex; align-items: center;
+    justify-content: space-between; flex-shrink: 0;
+  }
+  .appbar h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; }
+  .appbar .actions { display: flex; gap: 4px; }
+  .iconbtn {
+    width: 40px; height: 40px; display: inline-flex; align-items: center;
+    justify-content: center; border-radius: 50%; color: var(--text-secondary);
+  }
+  .iconbtn:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .iconbtn svg { width: 22px; height: 22px; }
+
+  /* Content */
+  #content { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+
+  /* Track list */
+  .track { display: flex; align-items: center; gap: 12px; padding: 8px 16px; }
+  .track:hover { background: var(--bg-hover); }
+  .track.active .t-title { color: var(--accent); }
+  .track .no { width: 20px; text-align: right; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+  .track .t-main { flex: 1; min-width: 0; }
+  .t-title { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .t-sub { font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .t-dur { font-size: 12px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+
+  /* Album grid */
+  #view-albums { padding: 8px 16px; }
+  .album-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px 12px; }
+  .album-card { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+  .album-cover {
+    aspect-ratio: 1; border-radius: 10px;
+    background: linear-gradient(135deg, #FF8A5B 0%, #2A1B5E 100%);
+    display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.85);
+  }
+  .album-cover svg { width: 36px; height: 36px; opacity: .9; }
+  .a-title { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .a-sub { font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Artist list */
+  .artist { display: flex; align-items: center; gap: 12px; padding: 8px 16px; width: 100%; text-align: left; }
+  .artist:hover { background: var(--bg-hover); }
+  .avatar {
+    width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+    background: var(--bg-selected); display: flex; align-items: center;
+    justify-content: center; font-weight: 600; color: var(--text-secondary);
+  }
+
+  /* Empty state */
+  .empty {
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    padding: 48px 24px; text-align: center; color: var(--text-secondary);
+  }
+  .empty svg { width: 40px; height: 40px; color: var(--text-tertiary); }
+  .empty input {
+    width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg-surface); color: var(--text-primary); font: inherit;
+  }
+  .btn-accent {
+    background: var(--accent); color: var(--on-accent); font-weight: 600;
+    padding: 10px 20px; border-radius: 999px;
+  }
+
+  /* Mini player */
+  #mini {
+    height: 64px; margin: 0 0 4px; padding: 0 12px; display: none;
+    align-items: center; gap: 12px; background: var(--bg-elevated);
+    border-top: 1px solid var(--border); cursor: pointer; position: relative; flex-shrink: 0;
+  }
+  #mini.show { display: flex; }
+  #mini .cover {
+    width: 40px; height: 40px; border-radius: 6px; flex-shrink: 0;
+    background: linear-gradient(135deg, #FF8A5B, #2A1B5E);
+    display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.85);
+  }
+  #mini .cover svg { width: 18px; height: 18px; }
+  #mini .m-main { flex: 1; min-width: 0; }
+  #mini .m-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #mini .m-artist { font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #mini .playbtn {
+    width: 40px; height: 40px; border-radius: 50%; background: var(--accent);
+    color: var(--on-accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  #mini .playbtn svg { width: 20px; height: 20px; }
+  #mini .nextbtn { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--text-primary); }
+  #mini .nextbtn svg { width: 24px; height: 24px; }
+  #mini-progress {
+    position: absolute; top: -1px; left: 0; right: 0; height: 2px;
+    background: var(--bg-selected); border-radius: 1px;
+  }
+  #mini-progress-fill { height: 100%; width: 0; background: var(--accent); border-radius: 1px; }
+
+  /* Tab bar */
+  #tabbar {
+    height: 84px; padding: 8px 8px 20px; display: flex;
+    justify-content: space-around; background: var(--bg-surface);
+    border-top: 1px solid var(--border); flex-shrink: 0;
+  }
+  .tab {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    color: var(--text-tertiary); font-size: 11px; padding: 4px 16px; border-radius: 10px;
+  }
+  .tab svg { width: 22px; height: 22px; }
+  .tab.active { color: var(--accent); font-weight: 600; }
+
+  /* Now playing overlay */
+  #nowplaying {
+    position: absolute; inset: 0; background: var(--bg-base);
+    display: none; flex-direction: column; z-index: 20;
+    animation: slideup .22s ease-out;
+  }
+  #nowplaying.show { display: flex; }
+  @keyframes slideup { from { transform: translateY(8%); opacity: .4; } to { transform: none; opacity: 1; } }
+  #np-cover {
+    margin: 8px 24px; aspect-ratio: 1; border-radius: 14px;
+    background: linear-gradient(135deg, #FF8A5B, #2A1B5E);
+    display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.9);
+    box-shadow: 0 12px 40px rgba(0,0,0,.45);
+  }
+  #np-cover svg { width: 64px; height: 64px; opacity: .9; }
+  #np-meta { padding: 8px 24px; }
+  #np-title { font-size: 20px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #np-artist { font-size: 14px; color: var(--text-secondary); margin-top: 2px; }
+  #np-seek-row { padding: 12px 24px 0; }
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 2px;
+    background: linear-gradient(to right, var(--accent) var(--fill,0%), var(--bg-selected) var(--fill,0%));
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent); cursor: pointer;
+  }
+  .times { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-tertiary); margin-top: 6px; font-variant-numeric: tabular-nums; }
+  #np-controls { display: flex; align-items: center; justify-content: space-around; padding: 16px 24px; }
+  #np-controls .side { color: var(--text-secondary); }
+  #np-controls .side svg { width: 22px; height: 22px; }
+  #np-controls .side.on { color: var(--accent); }
+  .big-play {
+    width: 64px; height: 64px; border-radius: 50%; background: var(--accent);
+    color: var(--on-accent); display: flex; align-items: center; justify-content: center;
+  }
+  .big-play svg { width: 28px; height: 28px; }
+  .skip { color: var(--text-primary); }
+  .skip svg { width: 30px; height: 30px; }
+  #np-volume { display: flex; align-items: center; gap: 10px; padding: 0 24px 16px; color: var(--text-secondary); }
+  #np-volume svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+  /* Toast */
+  #toast {
+    position: absolute; bottom: 160px; left: 50%; transform: translateX(-50%) translateY(8px);
+    background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-primary);
+    padding: 8px 16px; border-radius: 999px; font-size: 13px; opacity: 0;
+    transition: opacity .2s, transform .2s; pointer-events: none; z-index: 30; white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="appbar">
+    <h1 id="appbar-title">Lagu</h1>
+    <div class="actions">
+      <button class="iconbtn" id="btn-search" title="Cari">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+      <button class="iconbtn" id="btn-menu" title="Menu">
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="content">
+    <section id="view-tracks"></section>
+    <section id="view-albums" hidden></section>
+    <section id="view-artists" hidden></section>
+    <section id="view-playlists" hidden></section>
+  </main>
+
+  <div id="mini">
+    <div id="mini-progress"><div id="mini-progress-fill"></div></div>
+    <div class="cover">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+    </div>
+    <div class="m-main">
+      <div class="m-title"></div>
+      <div class="m-artist"></div>
+    </div>
+    <button class="playbtn" id="mini-play"></button>
+    <button class="nextbtn" id="mini-next">
+      <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+
+  <nav id="tabbar">
+    <button class="tab active" data-tab="tracks">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      Lagu
+    </button>
+    <button class="tab" data-tab="albums">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M6 12c0-1.7.7-3.2 1.8-4.2"/><path d="M18 12c0 1.7-.7 3.2-1.8 4.2"/><circle cx="12" cy="12" r="2"/></svg>
+      Album
+    </button>
+    <button class="tab" data-tab="artists">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Artis
+    </button>
+    <button class="tab" data-tab="playlists">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15V6"/><path d="M18.5 18a2.5 2.5 0 1 0 0-5"/><path d="M12 12H3"/><path d="M16 6H3"/><path d="M12 18H3"/></svg>
+      Playlist
+    </button>
+  </nav>
+
+  <div id="nowplaying">
+    <header class="appbar">
+      <button class="iconbtn" id="np-close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <span style="font-size:13px;color:var(--text-secondary)">Now Playing</span>
+      <span style="width:40px"></span>
+    </header>
+    <div id="np-cover">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+    </div>
+    <div id="np-meta">
+      <div id="np-title">—</div>
+      <div id="np-artist">—</div>
+    </div>
+    <div id="np-seek-row">
+      <input type="range" id="np-seek" min="0" max="1000" value="0" />
+      <div class="times"><span id="np-cur">0:00</span><span id="np-dur">0:00</span></div>
+    </div>
+    <div id="np-controls">
+      <button class="iconbtn side" title="Acak"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.8-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/></svg></button>
+      <button class="iconbtn skip" id="np-prev"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" x2="5" y1="19" y2="5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      <button class="big-play" id="np-play"></button>
+      <button class="iconbtn skip" id="np-next"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      <button class="iconbtn side" title="Ulangi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></button>
+    </div>
+    <div id="np-volume">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/></svg>
+      <input type="range" id="np-vol" min="0" max="100" value="100" />
+    </div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+<script>
+const { invoke } = window.__TAURI__.core;
+const { listen } = window.__TAURI__.event;
+
+const $ = (sel) => document.querySelector(sel);
+const state = {
+  tab: 'tracks',
+  tracks: [], albums: [], playlists: [],
+  filter: null,           // {albumId} | {artist}
+  playlistTracks: null,   // tracks of the open playlist (filter.playlistId)
+  search: '',
+  current: null,          // TrackDto
+  playing: false,
+  advancing: false,
+  pollTimer: null,
+};
+
+const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+const esc = (t) => { const d = document.createElement('div'); d.textContent = t ?? ''; return d.innerHTML; };
+
+function toast(msg, ms = 2200) {
+  const el = $('#toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><polygon points="6 3 20 12 6 21 6 3"/></svg>';
+const ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
+const DISC_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M6 12c0-1.7.7-3.2 1.8-4.2"/><path d="M18 12c0 1.7-.7 3.2-1.8 4.2"/><circle cx="12" cy="12" r="2"/></svg>';
+
+function visibleTracks() {
+  let list = state.tracks;
+  if (state.filter?.albumId != null) list = list.filter((t) => t.album_id === state.filter.albumId);
+  if (state.filter?.artist) list = list.filter((t) => t.artist === state.filter.artist);
+  if (state.search) {
+    const q = state.search.toLowerCase();
+    list = list.filter((t) =>
+      t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q));
+  }
+  return list;
+}
+
+function renderTracks() {
+  const el = $('#view-tracks');
+  let list, header = null;
+  if (state.filter?.playlistId != null) {
+    list = state.playlistTracks ?? [];
+    const p = state.playlists.find((x) => x.id === state.filter.playlistId);
+    header = `<div class="track"><span class="t-main"><div class="t-title" style="font-size:16px">${esc(p?.name ?? 'Playlist')}</div>
+      <div class="t-sub">${list.length} lagu</div></span>
+      <button class="btn-accent" id="play-all" style="padding:8px 16px;font-size:13px">Putar</button></div>`;
+  } else {
+    list = visibleTracks();
+  }
+  if (state.filter?.albumId != null) {
+    const a = state.albums.find((x) => x.id === state.filter.albumId);
+    header = `<button class="track" id="filter-clear"><span class="t-sub" style="color:var(--accent)">← ${esc(a?.title ?? 'Album')}</span></button>`;
+  } else if (state.filter?.artist) {
+    header = `<button class="track" id="filter-clear"><span class="t-sub" style="color:var(--accent)">← ${esc(state.filter.artist)}</span></button>`;
+  }
+  el.innerHTML = header ?? '';
+  $('#filter-clear')?.addEventListener('click', () => {
+    state.filter = null;
+    state.playlistTracks = null;
+    renderAll();
+  });
+  $('#play-all')?.addEventListener('click', () => {
+    if (list.length) playTrack(list[0].id);
+  });
+  if (!list.length) {
+    el.insertAdjacentHTML('beforeend', `
+      <div class="empty">
+        ${DISC_ICON.replace('viewBox', 'width="40" height="40" viewBox')}
+        <p>${state.search ? 'Tidak ada hasil' : 'Perpustakaan masih kosong'}</p>
+        ${state.search ? '' : `
+          <button class="btn-accent" id="scan-btn">Pilih Folder Musik</button>`}
+      </div>`);
+    $('#scan-btn')?.addEventListener('click', pickFolderAndScan);
+    return;
+  }
+  const frag = document.createElement('div');
+  frag.innerHTML = list.map((t) => `
+    <button class="track ${state.current?.id === t.id ? 'active' : ''}" data-id="${t.id}">
+      <span class="no">${t.track_no ?? ''}</span>
+      <span class="t-main">
+        <div class="t-title">${esc(t.title)}</div>
+        <div class="t-sub">${esc(t.artist)}</div>
+      </span>
+      <span class="t-dur">${fmt(t.duration_secs)}</span>
+    </button>`).join('');
+  frag.querySelectorAll('.track[data-id]').forEach((b) =>
+    b.addEventListener('click', () => playTrack(Number(b.dataset.id))));
+  el.insertAdjacentElement('beforeend', frag);
+}
+
+function renderAlbums() {
+  const el = $('#view-albums');
+  if (!state.albums.length) {
+    el.innerHTML = '<div class="empty"><p>Belum ada album</p></div>';
+    return;
+  }
+  el.innerHTML = `<div class="album-grid">${state.albums.map((a) => `
+    <button class="album-card" data-id="${a.id}">
+      <div class="album-cover">${DISC_ICON}</div>
+      <div><div class="a-title">${esc(a.title)}</div>
+      <div class="a-sub">${esc(a.artist ?? 'Unknown Artist')} · ${a.count} lagu</div></div>
+    </button>`).join('')}</div>`;
+  el.querySelectorAll('.album-card').forEach((b) =>
+    b.addEventListener('click', () => {
+      state.filter = { albumId: Number(b.dataset.id) };
+      switchTab('tracks');
+    }));
+}
+
+function renderArtists() {
+  const el = $('#view-artists');
+  const byArtist = new Map();
+  for (const t of state.tracks) {
+    const e = byArtist.get(t.artist) ?? { count: 0 };
+    e.count++;
+    byArtist.set(t.artist, e);
+  }
+  const artists = [...byArtist.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  if (!artists.length) {
+    el.innerHTML = '<div class="empty"><p>Belum ada artis</p></div>';
+    return;
+  }
+  el.innerHTML = artists.map(([name, e]) => `
+    <button class="artist" data-name="${esc(name)}">
+      <span class="avatar">${esc(name[0].toUpperCase())}</span>
+      <span class="t-main">
+        <div class="t-title">${esc(name)}</div>
+        <div class="t-sub">${e.count} lagu</div>
+      </span>
+    </button>`).join('');
+  el.querySelectorAll('.artist').forEach((b) =>
+    b.addEventListener('click', () => {
+      state.filter = { artist: b.dataset.name };
+      state.playlistTracks = null;
+      switchTab('tracks');
+    }));
+}
+
+function renderPlaylists() {
+  const el = $('#view-playlists');
+  const rows = state.playlists.map((p) => `
+    <button class="track" data-id="${p.id}">
+      <span class="avatar" style="border-radius:10px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="20" height="20"><path d="M21 15V6"/><path d="M18.5 18a2.5 2.5 0 1 0 0-5"/><path d="M12 12H3"/><path d="M16 6H3"/><path d="M12 18H3"/></svg>
+      </span>
+      <span class="t-main">
+        <div class="t-title">${esc(p.name)}</div>
+        <div class="t-sub">${p.count} lagu</div>
+      </span>
+      <button class="iconbtn pl-del" data-id="${p.id}" title="Hapus">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    </button>`).join('');
+  el.innerHTML = `
+    <div style="padding:8px 16px"><button class="btn-accent" id="pl-new" style="width:100%">+ Playlist Baru</button></div>
+    ${rows || '<div class="empty"><p>Belum ada playlist</p></div>'}`;
+  $('#pl-new').addEventListener('click', async () => {
+    const name = prompt('Nama playlist:');
+    if (name?.trim()) {
+      await invoke('create_playlist', { name: name.trim() }).catch((e) => toast(`Gagal: ${e}`));
+      await loadPlaylists();
+    }
+  });
+  el.querySelectorAll('.track[data-id]').forEach((b) =>
+    b.addEventListener('click', async (e) => {
+      if (e.target.closest('.pl-del')) return;
+      const id = Number(b.dataset.id);
+      const detail = await invoke('get_playlist', { id }).catch(() => null);
+      if (detail) {
+        state.filter = { playlistId: id };
+        state.playlistTracks = detail.tracks;
+        switchTab('tracks');
+      }
+    }));
+  el.querySelectorAll('.pl-del').forEach((b) =>
+    b.addEventListener('click', async () => {
+      if (!confirm('Hapus playlist ini?')) return;
+      await invoke('delete_playlist', { id: Number(b.dataset.id) }).catch(() => {});
+      if (state.filter?.playlistId === Number(b.dataset.id)) {
+        state.filter = null;
+        state.playlistTracks = null;
+      }
+      await loadPlaylists();
+    }));
+}
+
+async function loadPlaylists() {
+  state.playlists = await invoke('list_playlists').catch(() => []);
+  renderPlaylists();
+}
+
+function renderAll() {
+  renderTracks(); renderAlbums(); renderArtists(); renderPlaylists();
+  const titles = { tracks: 'Lagu', albums: 'Album', artists: 'Artis', playlists: 'Playlist' };
+  if (!state.filter?.playlistId) $('#appbar-title').textContent = state.filter?.artist ?? titles[state.tab];
+}
+
+function switchTab(tab) {
+  state.tab = tab;
+  if (tab !== 'tracks') { /* keep playlist detail when returning */ }
+  document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+  $('#view-tracks').hidden = tab !== 'tracks';
+  $('#view-albums').hidden = tab !== 'albums';
+  $('#view-artists').hidden = tab !== 'artists';
+  $('#view-playlists').hidden = tab !== 'playlists';
+  renderAll();
+}
+
+// --- playback ------------------------------------------------------------
+async function playTrack(id) {
+  const t = state.tracks.find((x) => x.id === id) || state.playlistTracks?.find((x) => x.id === id);
+  if (!t) return;
+  state.advancing = false;
+  try {
+    const dto = await invoke('play_track', { id });
+    state.current = t;
+    state.playing = dto.status === 'playing';
+    updatePlayerUi();
+    startPolling();
+    // Best-effort gapless preload of the next track in this view.
+    const list = state.filter?.playlistId != null ? state.playlistTracks : visibleTracks();
+    const i = list.findIndex((x) => x.id === id);
+    const next = list[i + 1] ?? list[0];
+    if (next && next.id !== id) invoke('enqueue_next', { id: next.id }).catch(() => {});
+  } catch (e) {
+    toast(`Gagal memutar: ${e}`);
+  }
+}
+
+async function togglePlay() {
+  if (!state.current) {
+    const first = visibleTracks()[0];
+    if (first) playTrack(first.id);
+    return;
+  }
+  const dto = await invoke('toggle_play').catch(() => null);
+  if (dto) { state.playing = dto.status === 'playing'; updatePlayerUi(); }
+}
+
+function playListNow() {
+  return state.filter?.playlistId != null ? (state.playlistTracks ?? []) : visibleTracks();
+}
+
+async function nextTrack() {
+  const list = playListNow();
+  const i = list.findIndex((t) => t.id === state.current?.id);
+  const next = list[i + 1] ?? list[0];
+  if (next) playTrack(next.id);
+}
+
+async function prevTrack() {
+  const list = playListNow();
+  const i = list.findIndex((t) => t.id === state.current?.id);
+  const prev = list[i - 1] ?? list[list.length - 1];
+  if (prev) playTrack(prev.id);
+}
+
+function updatePlayerUi() {
+  const mini = $('#mini');
+  mini.classList.toggle('show', !!state.current);
+  if (state.current) {
+    mini.querySelector('.m-title').textContent = state.current.title;
+    mini.querySelector('.m-artist').textContent = state.current.artist;
+  }
+  $('#mini-play').innerHTML = state.playing ? ICON_PAUSE : ICON_PLAY;
+  $('#np-play').innerHTML = state.playing ? ICON_PAUSE : ICON_PLAY;
+}
+
+function applyState(dto, durationSecs) {
+  state.playing = dto.status === 'playing';
+  const dur = Math.max(durationSecs, 1);
+  const pos = Math.min(dto.position_secs, dur);
+  $('#np-seek').value = String(Math.round((pos / dur) * 1000));
+  $('#np-seek').style.setProperty('--fill', `${(pos / dur) * 100}%`);
+  $('#np-cur').textContent = fmt(pos);
+  $('#np-dur').textContent = fmt(durationSecs);
+  $('#mini-progress-fill').style.width = `${(pos / dur) * 100}%`;
+  updatePlayerUi();
+}
+
+function startPolling() {
+  clearInterval(state.pollTimer);
+  state.pollTimer = setInterval(async () => {
+    if (!state.current || state.advancing) return;
+    const dto = await invoke('get_playback_state').catch(() => null);
+    if (!dto) return;
+    if (dto.status === 'stopped') {
+      // Track ended with no gapless next — advance automatically.
+      state.advancing = true;
+      nextTrack().finally(() => { state.advancing = false; });
+      return;
+    }
+    applyState(dto, state.current.duration_secs);
+  }, 500);
+}
+
+// --- scan ----------------------------------------------------------------
+async function pickFolder() {
+  try {
+    const path = await window.__TAURI__.dialog.open({ directory: true });
+    if (typeof path === 'string' && path) return path;
+    return null;
+  } catch {
+    // Fallback for environments without the dialog plugin.
+    return prompt('Folder musik:') || null;
+  }
+}
+
+async function pickFolderAndScan() {
+  const root = await pickFolder();
+  if (root) { state.scanRoot = root; startScan(); }
+}
+
+async function startScan() {
+  const root = state.scanRoot || (await pickFolder());
+  if (!root) { toast('Folder belum dipilih'); return; }
+  state.scanRoot = root;
+  toast('Memindai…');
+  try {
+    await invoke('scan_library', { root });
+  } catch (e) {
+    toast(`Scan gagal: ${e}`);
+  }
+}
+
+// --- events wiring -------------------------------------------------------
+document.querySelectorAll('.tab').forEach((b) =>
+  b.addEventListener('click', () => switchTab(b.dataset.tab)));
+
+$('#btn-search').addEventListener('click', () => {
+  // ponytail: inline prompt keeps MVP simple; replace with search screen later
+  const q = prompt('Cari lagu/artis:', state.search);
+  if (q !== null) { state.search = q.trim(); switchTab('tracks'); }
+});
+
+$('#btn-menu').addEventListener('click', () => {
+  const active = state.current ? `"${state.current.title}"` : '(belum ada lagu aktif)';
+  const choice = prompt(
+    `1: Pilih folder & pindai
+2: Tema ${document.documentElement.dataset.theme === 'dark' ? 'terang' : 'gelap'}
+3: Pindai ulang (${state.scanRoot ?? 'belum ada'})
+4: Tambah ${active} ke playlist`,
+    '1');
+  if (choice === '1' || choice === '3') {
+    pickFolderAndScan();
+  } else if (choice === '2') {
+    const html = document.documentElement;
+    html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
+  } else if (choice === '4') {
+    addActiveToPlaylist();
+  }
+});
+
+async function addActiveToPlaylist() {
+  if (!state.current) { toast('Tidak ada lagu aktif'); return; }
+  await loadPlaylists();
+  const names = state.playlists.map((p, i) => `${i + 1}: ${p.name}`).join('\n');
+  const pick = prompt(`Tambah ke playlist:\n${names}\nNomor (kosong = buat baru):`);
+  if (pick === null) return;
+  const idx = Number(pick);
+  let pid;
+  if (pick.trim() && idx >= 1 && idx <= state.playlists.length) {
+    pid = state.playlists[idx - 1].id;
+  } else {
+    const name = prompt('Nama playlist baru:');
+    if (!name?.trim()) return;
+    const created = await invoke('create_playlist', { name: name.trim() }).catch(() => null);
+    if (!created) return;
+    pid = created.id;
+  }
+  await invoke('add_to_playlist', { playlistId: pid, trackId: state.current.id }).catch((e) => toast(`Gagal: ${e}`));
+  toast('Ditambahkan ke playlist');
+  await loadPlaylists();
+}
+
+$('#mini').addEventListener('click', (e) => {
+  if (e.target.closest('button')) return;
+  $('#nowplaying').classList.add('show');
+});
+$('#np-close').addEventListener('click', () => $('#nowplaying').classList.remove('show'));
+$('#mini-play').addEventListener('click', togglePlay);
+$('#np-play').addEventListener('click', togglePlay);
+$('#mini-next').addEventListener('click', nextTrack);
+$('#np-next').addEventListener('click', nextTrack);
+$('#np-prev').addEventListener('click', prevTrack);
+
+$('#np-seek').addEventListener('change', (e) => {
+  if (!state.current) return;
+  const dur = state.current.duration_secs;
+  const pos = Math.round((Number(e.target.value) / 1000) * dur);
+  invoke('seek', { positionMs: pos * 1000 }).catch(() => {});
+});
+$('#np-vol').addEventListener('input', (e) => {
+  invoke('set_volume', { volume: Number(e.target.value) / 100 }).catch(() => {});
+});
+
+listen('app://event', (ev) => {
+  const { type, data } = ev.payload ?? {};
+  if (type === 'scan_progress') {
+    toast(`Memindai… ${data.scanned} berkas (${data.added} baru)`);
+  } else if (type === 'scan_finished') {
+    toast(`Selesai: ${data.added} baru, ${data.skipped} sama, ${data.failed} gagal`);
+    refresh();
+  } else if (type === 'playback_state_changed') {
+    state.playing = data.status === 'playing';
+    updatePlayerUi();
+  }
+});
+
+async function refresh() {
+  const page = await invoke('search_tracks', { query: '', limit: 500, offset: 0 }).catch(() => ({ items: [] }));
+  state.tracks = page.items ?? [];
+  state.albums = await invoke('list_albums').catch(() => []);
+  state.playlists = await invoke('list_playlists').catch(() => []);
+  renderAll();
+}
+
+refresh();
+</script>
+</body>
+</html>

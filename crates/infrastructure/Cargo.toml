@@ -1,0 +1,20 @@
+[package]
+name = "infrastructure"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+domain = { path = "../domain" }
+application = { path = "../application" }
+
+thiserror.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+tokio.workspace = true
+
+sqlx.workspace = true
+symphonia.workspace = true
+cpal.workspace = true
+lofty.workspace = true
+walkdir.workspace = true
+souvlaki.workspace = true

@@ -1,0 +1,11 @@
+[package]
+name = "application"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+domain = { path = "../domain", features = ["serde"] }
+thiserror = { workspace = true }
+serde = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }

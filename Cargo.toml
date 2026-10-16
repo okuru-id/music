@@ -1,0 +1,29 @@
+[workspace]
+resolver = "2"
+members = ["crates/domain", "crates/application", "crates/infrastructure", "crates/app-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace.dependencies]
+# core
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+async-trait = "0.1"
+futures = "0.3"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "fs"] }
+# infrastructure
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite"] }
+symphonia = { version = "0.6", features = ["flac", "mp3", "aac", "vorbis", "pcm", "isomp4", "ogg", "wav", "all-meta"] }
+cpal = "0.18"
+lofty = "0.25"
+walkdir = "2"
+souvlaki = { version = "0.8", default-features = false, features = ["use_zbus"] }
+# shell
+tauri = "2"
+serde_json = "1"
+
+[profile.release]
+lto = "thin"
+strip = true
