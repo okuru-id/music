@@ -30,7 +30,7 @@ UI berupa satu file statis di `ui/dist/index.html`, tanpa build step.
 Prasyarat: Rust (edition 2024) dan [dependensi sistem Tauri](https://v2.tauri.app/start/prerequisites/), plus ALSA dev (`libasound2-dev`) di Linux.
 
 ```bash
-cargo install tauri-cli --version "^2"
+cargo install tauri-cli --version "^2" --locked
 cd crates/app-tauri
 cargo tauri dev
 ```
